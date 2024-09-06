@@ -1,0 +1,18 @@
+metrics-discovery (1.13.176-991-0ubuntu1~24.10~ppa1) oracular; urgency=medium
+
+  * Change versioning to match the PPA version scheme 
+  * Changed to oracular
+
+ -- Shane McKee <shane.mckee@canonical.com>  Thu, 06 Sep 2024 03:33:27 +0400
+
+metrics-discovery (1.13.176-991~24.04) UNRELEASED; urgency=medium
+
+  * build dev-build
+
+ -- Markova Maria <maria.markova@intel.com>  Thu, 05 Sep 2024 12:27:40 -0700
+
+metrics-discovery (1.5.112) experimental; urgency=medium
+
+  * Initial release in Agama.
+
+ -- Markova Maria <maria.markova@intel.com>  Wed, 04 Mar 2020 15:02:31 +0100
