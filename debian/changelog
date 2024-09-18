@@ -1,9 +1,17 @@
+metrics-discovery (1.13.176-991-0ubuntu1~24.10~ppa2) oracular; urgency=medium
+
+  * Fixed in changelog: Sept 6th was a Friday  
+  * Remove debian/files file from git
+  * Add debian folder license
+
+ -- Shane McKee <shane.mckee@canonical.com>  Wed, 18 Sep 2024 20:40:37 +0800
+
 metrics-discovery (1.13.176-991-0ubuntu1~24.10~ppa1) oracular; urgency=medium
 
   * Change versioning to match the PPA version scheme 
   * Changed to oracular
 
- -- Shane McKee <shane.mckee@canonical.com>  Thu, 06 Sep 2024 03:33:27 +0400
+ -- Shane McKee <shane.mckee@canonical.com>  Fri, 06 Sep 2024 03:33:27 +0400
 
 metrics-discovery (1.13.176-991~24.04) UNRELEASED; urgency=medium
 
