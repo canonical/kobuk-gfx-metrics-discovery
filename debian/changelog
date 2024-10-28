@@ -1,3 +1,9 @@
+metrics-discovery (1.13.178-0ubuntu1~24.10~ppa1) oracular; urgency=medium
+
+  * Bump version to 1.13.178
+
+ -- Pavel Androniychuk <pavel.androniychuk@intel.com>  Thu, 24 Oct 2024 12:23:05 -0700
+
 metrics-discovery (1.13.176-991-0ubuntu1~24.10~ppa2) oracular; urgency=medium
 
   * Fixed in changelog: Sept 6th was a Friday  
