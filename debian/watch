@@ -1,5 +1,4 @@
 version=4
-
-opts="filenamemangle=s%(?:.*?)?(\d[\d.]*)\.tar\.gz%metrics-discovery-1.5.$1.tar.gz%" \
+opts="dversionmangle=auto" \
    https://github.com/intel/metrics-discovery/tags \
-   (?:.*?/)?(\d[\d.]*)\.tar\.gz
+   (?:.*?/)metrics-discovery[-_]?(?!600\.0)(\d[\-+\.:\~\d]*)\.tar\.gz
