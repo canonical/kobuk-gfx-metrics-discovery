@@ -1,3 +1,14 @@
+metrics-discovery (1.13.178-0ubuntu1~24.10~ppa2) oracular; urgency=medium
+
+  * Change package name to match soname
+  * Remove libmd Replaces lines since they do not appear to have the same
+    source
+  * Remove override_dh_install since it does not do anything more than
+    dh_install
+  * Fix watch file
+
+ -- Shane McKee <shane.mckee@canonical.com>  Tue, 05 Nov 2024 09:57:29 +0800
+
 metrics-discovery (1.13.178-0ubuntu1~24.10~ppa1) oracular; urgency=medium
 
   * Bump version to 1.13.178

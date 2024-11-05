@@ -1,7 +1,8 @@
 Source: metrics-discovery
 Section: libs
 Priority: optional
-Maintainer: Intel Graphics Team <linux-graphics@intel.com>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Intel Graphics Team <linux-graphics@intel.com>
 Build-Depends: debhelper (>= 11),
  cmake,
  pkg-config,
@@ -9,8 +10,7 @@ Build-Depends: debhelper (>= 11),
 Standards-Version: 4.3.0
 Homepage: https://github.com/intel/metrics-discovery
 
-Package: intel-metrics-discovery
-Replaces: libmd1
+Package: libigdmd1
 Architecture: amd64
 Depends:
  ${shlibs:Depends},
@@ -21,8 +21,7 @@ Description: Intel(R) Metrics Discovery Application Programming Interface --
  mechanism across all GEN graphics and serves metric definitions for
  specific hardware to applications.
 
-Package: intel-metrics-discovery-dev
-Replaces: libmd-dev
+Package: libigdmd-dev
 Section: libdevel
 Architecture: amd64
 Depends:
