@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022-2024 Intel Corporation
+Copyright (C) 2022-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -113,12 +113,14 @@ namespace MetricsDiscoveryInternal
         {
             case GENERATION_BMG:
             case GENERATION_LNL:
+            case GENERATION_PTL:
                 snapshotReportSize = snapshotReportSizePostXe2;
                 deltaReportSize    = deltaReportSizePostXe2;
                 reportFormat       = OA_REPORT_TYPE_576B_PEC64LL;
                 break;
 
             default:
+                MD_LOG_A( adapterId, LOG_INFO, "Platform: %u not supported", platformIndex );
                 return nullptr;
         }
 
@@ -285,6 +287,12 @@ namespace MetricsDiscoveryInternal
     {
         const uint32_t adapterId = m_device.GetAdapter().GetAdapterId();
         MD_LOG_ENTER_A( adapterId );
+
+        if( processId != 0 )
+        {
+            return CC_ERROR_NOT_SUPPORTED;
+        }
+
         MD_CHECK_PTR_RET_A( adapterId, nsTimerPeriod, CC_ERROR_INVALID_PARAMETER );
         MD_CHECK_PTR_RET_A( adapterId, oaBufferSize, CC_ERROR_INVALID_PARAMETER );
 
@@ -526,6 +534,7 @@ namespace MetricsDiscoveryInternal
         {
             case GENERATION_BMG:
             case GENERATION_LNL:
+            case GENERATION_PTL:
                 reportType = DEFAULT_METRIC_SET_REPORT_TYPE_XE2;
                 break;
             default:
@@ -896,9 +905,6 @@ namespace MetricsDiscoveryInternal
         , m_metricEnumeratorVector{ new( std::nothrow ) CMetricEnumerator( *this ) }
         , m_archEventVector()
     {
-        m_ioMeasurementInfoVector.reserve( EXCEPTIONS_VECTOR_INCREASE );
-        m_ioGpuContextInfoVector.reserve( GPU_CONTEXTS_VECTOR_INCREASE );
-
         AddIoMeasurementInfoPredefined();
         m_params.IoMeasurementInformationCount = static_cast<uint32_t>( m_ioMeasurementInfoVector.size() );
     }
@@ -934,11 +940,15 @@ namespace MetricsDiscoveryInternal
 
         MD_CHECK_PTR_RET_A( adapterId, measurementInfo, nullptr );
 
-        measurementInfo->SetSnapshotReportReadEquation( "0" );
-        measurementInfo->SetDeltaReportReadEquation( "0" );
+        MD_CHECK_CC( measurementInfo->SetSnapshotReportReadEquation( "0" ) );
+        MD_CHECK_CC( measurementInfo->SetDeltaReportReadEquation( "0" ) );
 
         m_ioMeasurementInfoVector.push_back( measurementInfo );
         return measurementInfo;
+
+    exception:
+        MD_SAFE_DELETE( measurementInfo );
+        return nullptr;
     }
 
     //////////////////////////////////////////////////////////////////////////////
@@ -1027,11 +1037,15 @@ namespace MetricsDiscoveryInternal
 
         MD_CHECK_PTR_RET_A( adapterId, gpuContextInfo, nullptr );
 
-        gpuContextInfo->SetSnapshotReportReadEquation( "" );
-        gpuContextInfo->SetDeltaReportReadEquation( "" );
+        MD_CHECK_CC( gpuContextInfo->SetSnapshotReportReadEquation( "" ) );
+        MD_CHECK_CC( gpuContextInfo->SetDeltaReportReadEquation( "" ) );
 
         m_ioGpuContextInfoVector.push_back( gpuContextInfo );
         return gpuContextInfo;
+
+    exception:
+        MD_SAFE_DELETE( gpuContextInfo );
+        return nullptr;
     }
 
     //////////////////////////////////////////////////////////////////////////////

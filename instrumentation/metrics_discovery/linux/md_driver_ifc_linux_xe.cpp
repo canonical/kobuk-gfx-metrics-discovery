@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2024 Intel Corporation
+Copyright (C) 2024-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -70,6 +70,7 @@ namespace MetricsDiscoveryInternal
     //////////////////////////////////////////////////////////////////////////////
     CDriverInterfaceLinuxXe::CDriverInterfaceLinuxXe( CAdapterHandle& adapterHandle )
         : CDriverInterfaceLinuxCommon( adapterHandle, DRM_VERSION_XE )
+        , m_xeObservationCapabilities{}
     {
     }
 
@@ -122,7 +123,7 @@ namespace MetricsDiscoveryInternal
 
         AcquireAdapterId();
 
-        return true;
+        return ReadXeObservationCapabilities() == CC_OK;
     }
 
     //////////////////////////////////////////////////////////////////////////////
@@ -482,6 +483,7 @@ namespace MetricsDiscoveryInternal
     //     CMetricsDevice&           metricsDevice       - metrics device
     //     uint32_t                  oaMetricSetId       - oa configuration ID (previously added)
     //     uint32_t                  oaReportType        - oa report type
+    //     uint32_t                  oaReportSize        - oa report size
     //     uint32_t                  timerPeriodExponent - timer period exponent
     //     uint32_t                  bufferSize          - oa buffer size
     //     const GTDI_OA_BUFFER_TYPE oaBufferType        - oa buffer type
@@ -490,7 +492,7 @@ namespace MetricsDiscoveryInternal
     //     TCompletionCode                               - *CC_OK* means success
     //
     //////////////////////////////////////////////////////////////////////////////
-    TCompletionCode CDriverInterfaceLinuxXe::OpenOaStream( CMetricsDevice& metricsDevice, uint32_t oaMetricSetId, uint32_t oaReportType, uint32_t timerPeriodExponent, uint32_t bufferSize, const GTDI_OA_BUFFER_TYPE oaBufferType )
+    TCompletionCode CDriverInterfaceLinuxXe::OpenOaStream( CMetricsDevice& metricsDevice, uint32_t oaMetricSetId, uint32_t oaReportType, uint32_t oaReportSize, uint32_t timerPeriodExponent, uint32_t bufferSize, const GTDI_OA_BUFFER_TYPE oaBufferType )
     {
         TCompletionCode         ret                                                                          = CC_ERROR_GENERAL;
         int32_t                 oaEventFd                                                                    = -1;
@@ -531,6 +533,28 @@ namespace MetricsDiscoveryInternal
         addProperty( DRM_XE_OA_PROPERTY_OA_METRIC_SET, oaMetricSetId );
         addProperty( DRM_XE_OA_PROPERTY_OA_FORMAT, oaReportType );
         addProperty( DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, timerPeriodExponent );
+
+        // Oa buffer size.
+        if( m_xeObservationCapabilities.IsConfigurableOaBufferSize )
+        {
+            bufferSize = CalculateOaBufferSize( bufferSize, metricsDevice );
+            addProperty( DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE, bufferSize );
+        }
+        else
+        {
+            bufferSize = MD_OA_BUFFER_SIZE_MAX;
+            MD_LOG_A( m_adapterId, LOG_DEBUG, "Cannot set oa buffer size. Configurable OA buffer size is not available." );
+        }
+
+        // Half-full buffer interrupt.
+        if( m_xeObservationCapabilities.IsOaNotifyNumReportsSupported )
+        {
+            const uint32_t halfSizeInReports = bufferSize / 2 / oaReportSize;
+
+            addProperty( DRM_XE_OA_PROPERTY_WAIT_NUM_REPORTS, halfSizeInReports );
+
+            MD_LOG_A( m_adapterId, LOG_DEBUG, "Number of reports KMD needs to wait before unblocking is %u", halfSizeInReports );
+        }
 
         param.observation_type = DRM_XE_OBSERVATION_TYPE_OA;
         param.observation_op   = DRM_XE_OBSERVATION_OP_STREAM_OPEN;
@@ -854,6 +878,7 @@ namespace MetricsDiscoveryInternal
         {
             case GENERATION_BMG:
             case GENERATION_LNL:
+            case GENERATION_PTL:
             {
                 switch( reportType )
                 {
@@ -981,6 +1006,53 @@ namespace MetricsDiscoveryInternal
         {
             MD_LOG_A( m_adapterId, LOG_ERROR, "ERROR: invalid drm query result" );
             return CC_ERROR_GENERAL;
+        }
+
+        return CC_OK;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+    //
+    // Class:
+    //     CDriverInterfaceLinuxXe
+    //
+    // Method:
+    //     ReadXeObservationCapabilities
+    //
+    // Description:
+    //     Checks whether certain Xe observation features are supported.
+    //
+    //////////////////////////////////////////////////////////////////////////////
+    TCompletionCode CDriverInterfaceLinuxXe::ReadXeObservationCapabilities()
+    {
+        m_xeObservationCapabilities = {};
+
+        auto            buffer = std::vector<uint8_t>();
+        TCompletionCode ret    = QueryDrm( DRM_XE_DEVICE_QUERY_OA_UNITS, buffer );
+        const size_t    size   = buffer.size();
+
+        MD_CHECK_CC_RET_A( m_adapterId, ret );
+        MD_CHECK_CC_RET_A( m_adapterId, size ? CC_OK : CC_ERROR_GENERAL );
+
+        // Copy engine data.
+        const auto oaData       = reinterpret_cast<drm_xe_query_oa_units*>( buffer.data() );
+        auto       oaUnitOffset = reinterpret_cast<uint8_t*>( oaData->oa_units );
+
+        for( uint32_t i = 0; i < oaData->num_oa_units; ++i )
+        {
+            const auto& oaUnit = *reinterpret_cast<drm_xe_oa_unit*>( oaUnitOffset );
+
+            if( oaUnit.oa_unit_type == DRM_XE_OA_UNIT_TYPE_OAG )
+            {
+                m_xeObservationCapabilities.IsConfigurableOaBufferSize    = oaUnit.capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE;
+                m_xeObservationCapabilities.IsOaNotifyNumReportsSupported = oaUnit.capabilities & DRM_XE_OA_CAPS_WAIT_NUM_REPORTS;
+
+                MD_LOG_A( m_adapterId, LOG_INFO, "Configurable OA buffer size is%s supported", m_xeObservationCapabilities.IsConfigurableOaBufferSize ? "" : " not" );
+                MD_LOG_A( m_adapterId, LOG_INFO, "Oa notify num reports is%s supported", m_xeObservationCapabilities.IsOaNotifyNumReportsSupported ? "" : " not" );
+                break;
+            }
+
+            oaUnitOffset += sizeof( oaUnit ) + oaUnit.num_engines * sizeof( oaUnit.eci[0] );
         }
 
         return CC_OK;
@@ -1496,9 +1568,16 @@ namespace MetricsDiscoveryInternal
     //////////////////////////////////////////////////////////////////////////////
     TCompletionCode CDriverInterfaceLinuxXe::GetOaBufferSupportedSizes( const uint32_t platformId, uint32_t& minSize, uint32_t& maxSize )
     {
-        // 16MB is only supported size in XE KMD now.
-        minSize = MD_OA_BUFFER_SIZE_MAX;
-        maxSize = MD_OA_BUFFER_SIZE_MAX;
+        if( m_xeObservationCapabilities.IsConfigurableOaBufferSize )
+        {
+            minSize = MD_OA_BUFFER_SIZE_MIN;
+            maxSize = MD_OA_BUFFER_SIZE_MAX_XE_HP;
+        }
+        else
+        {
+            minSize = MD_OA_BUFFER_SIZE_MAX;
+            maxSize = MD_OA_BUFFER_SIZE_MAX;
+        }
 
         return CC_OK;
     }
@@ -1610,6 +1689,37 @@ namespace MetricsDiscoveryInternal
     //     CDriverInterfaceLinuxXe
     //
     // Method:
+    //     GetCopyEngineTotalCount
+    //
+    // Description:
+    //     Returns copy engine count for current platform.
+    //
+    // Input:
+    //     CMetricsDevice& metricsDevice   - (IN) metrics device
+    //     uint32_t&       copyEngineCount - (OUT) copy engine count
+    //
+    // Output:
+    //     TCompletionCode                 - *CC_OK* means success
+    //
+    //////////////////////////////////////////////////////////////////////////////
+    TCompletionCode CDriverInterfaceLinuxXe::GetCopyEngineTotalCount( CMetricsDevice& metricsDevice, uint32_t& copyEngineCount )
+    {
+        uint64_t copyEngineMask = 0;
+        auto     ret            = GetCopyEngineMask( metricsDevice, copyEngineMask );
+
+        MD_CHECK_CC_RET_A( m_adapterId, ret );
+
+        copyEngineCount = CalculateEnabledBits( copyEngineMask );
+
+        return CC_OK;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+    //
+    // Class:
+    //     CDriverInterfaceLinuxXe
+    //
+    // Method:
     //     GetComputeEngineTotalCount
     //
     // Description:
@@ -1708,8 +1818,9 @@ namespace MetricsDiscoveryInternal
     //////////////////////////////////////////////////////////////////////////////
     TCompletionCode CDriverInterfaceLinuxXe::GetL3NodeMask( CMetricsDevice& metricsDevice, uint64_t& l3NodeMask )
     {
-        uint64_t l3BankMask = 0;
-        auto     result     = GetL3BankMask( metricsDevice, l3BankMask );
+        uint64_t       l3BankMask         = 0;
+        const uint32_t maxL3BankPerL3Node = GetGtMaxL3BankPerL3Node();
+        auto           result             = GetL3BankMask( metricsDevice, l3BankMask );
 
         MD_CHECK_CC_RET_A( m_adapterId, result );
 
@@ -1717,7 +1828,7 @@ namespace MetricsDiscoveryInternal
 
         for( uint32_t i = 0; i < MD_MAX_L3_NODE; ++i )
         {
-            if( ( l3BankMask >> ( MD_MAX_L3_BANK_PER_L3_NODE * i ) ) & MD_BITMASK( MD_MAX_L3_BANK_PER_L3_NODE ) )
+            if( ( l3BankMask >> ( maxL3BankPerL3Node * i ) ) & MD_BITMASK( maxL3BankPerL3Node ) )
             {
                 l3NodeMask |= MD_BIT( i );
             }

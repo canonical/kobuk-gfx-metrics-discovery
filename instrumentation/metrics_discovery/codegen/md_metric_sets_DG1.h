@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023-2024 Intel Corporation
+Copyright (C) 2023-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -35,7 +35,7 @@ namespace MetricsDiscoveryInternal::MetricSets_DG1_PipelineStatistics
 
 namespace MetricsDiscoveryInternal::MetricSets_DG1_OA
 {
-    void AddInformationSet( CConcurrentGroup* concurrentGroup );
+    TCompletionCode AddInformationSet( CConcurrentGroup* concurrentGroup );
 
     class CRenderBasicMetricSet final : public CMetricSet
     {

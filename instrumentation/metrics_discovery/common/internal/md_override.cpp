@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022-2024 Intel Corporation
+Copyright (C) 2022-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -390,7 +390,8 @@ namespace MetricsDiscoveryInternal
         else
         {
             // Update Frequency global symbol
-            m_device.GetSymbolSet().RedetectSymbol( "GpuCurrentFrequencyMHz" );
+            ret = m_device.GetSymbolSet().RedetectSymbol( "GpuCurrentFrequencyMHz" );
+            ret = m_device.GetSymbolSet().RedetectSymbol( "GpuFrequencyOverrideEnabled" );
         }
 
         MD_LOG_EXIT_A( adapterId );

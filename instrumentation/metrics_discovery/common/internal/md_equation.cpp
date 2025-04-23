@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022-2024 Intel Corporation
+Copyright (C) 2022-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -34,8 +34,7 @@ namespace MetricsDiscoveryInternal
     //
     //////////////////////////////////////////////////////////////////////////////
     CEquationElementInternal::CEquationElementInternal()
-        : SymbolNameInternal{ 0 }
-        , MetricIndexInternal( static_cast<uint32_t>( -1 ) )
+        : MetricIndexInternal( -1 )
     {
         Type            = EQUATION_ELEM_LAST_1_0;
         ImmediateUInt64 = 0ULL;
@@ -43,7 +42,7 @@ namespace MetricsDiscoveryInternal
         Mask            = { 0, nullptr };
         Operation       = EQUATION_OPER_LAST_1_0;
         ReadParams      = { 0, 0, 0, 0 };
-        SymbolName      = SymbolNameInternal;
+        SymbolName      = new( std::nothrow ) char[1](); // SymbolName cannot be null, must be an empty string.
     }
 
     //////////////////////////////////////////////////////////////////////////////
@@ -64,6 +63,8 @@ namespace MetricsDiscoveryInternal
         {
             DeleteByteArray( Mask, IU_ADAPTER_ID_UNKNOWN );
         }
+
+        MD_SAFE_DELETE_ARRAY( SymbolName );
     }
 
     //////////////////////////////////////////////////////////////////////////////
@@ -83,6 +84,28 @@ namespace MetricsDiscoveryInternal
         if( this != &element )
         {
             SetMembers( element );
+            CopyMembers( element );
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+    //
+    // Class:
+    //     CEquationElementInternal
+    //
+    // Method:
+    //     CEquationElementInternal move constructor
+    //
+    // Description:
+    //     CEquationElementInternal move constructor
+    //
+    //////////////////////////////////////////////////////////////////////////////
+    CEquationElementInternal::CEquationElementInternal( CEquationElementInternal&& element )
+    {
+        if( this != &element )
+        {
+            SetMembers( element );
+            MoveMembers( element );
         }
     }
 
@@ -103,6 +126,30 @@ namespace MetricsDiscoveryInternal
         if( this != &element )
         {
             SetMembers( element );
+            CopyMembers( element );
+        }
+
+        return *this;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+    //
+    // Class:
+    //     CEquationElementInternal
+    //
+    // Method:
+    //     operator=
+    //
+    // Description:
+    //     Assignment operator. Moves whole memory.
+    //
+    //////////////////////////////////////////////////////////////////////////////
+    CEquationElementInternal& CEquationElementInternal::operator=( CEquationElementInternal&& element )
+    {
+        if( this != &element )
+        {
+            SetMembers( element );
+            MoveMembers( element );
         }
 
         return *this;
@@ -117,14 +164,13 @@ namespace MetricsDiscoveryInternal
     //     SetMembers
     //
     // Description:
-    //     Sets all members.
+    //     Sets all non-dynamically allocated members.
     //
     //////////////////////////////////////////////////////////////////////////////
     void CEquationElementInternal::SetMembers( const CEquationElementInternal& element )
     {
-        SymbolNameInternal[0] = '\0';
-        SymbolName            = SymbolNameInternal;
-        Type                  = element.Type;
+        Type                = element.Type;
+        MetricIndexInternal = element.MetricIndexInternal;
 
         switch( Type )
         {
@@ -134,37 +180,6 @@ namespace MetricsDiscoveryInternal
 
             case EQUATION_ELEM_IMM_FLOAT:
                 ImmediateFloat = element.ImmediateFloat;
-                break;
-
-            case EQUATION_ELEM_MASK:
-                if( const uint32_t byteArraySize = element.Mask.Size;
-                    byteArraySize != 0 )
-                {
-                    if( element.Mask.Data == nullptr )
-                    {
-                        Mask.Size = 0;
-                        Mask.Data = nullptr;
-                        MD_LOG( LOG_WARNING, "Cannot copy null element's mask" );
-                    }
-                    else
-                    {
-                        Mask.Size = byteArraySize;
-                        Mask.Data = new( std::nothrow ) uint8_t[byteArraySize]();
-
-                        if( Mask.Data == nullptr )
-                        {
-                            MD_LOG( LOG_WARNING, "Cannot allocate memory for element's mask" );
-                        }
-                        else
-                        {
-                            iu_memcpy_s( &Mask.Data, byteArraySize, &element.Mask.Data, byteArraySize );
-                        }
-                    }
-                }
-                else
-                {
-                    MD_LOG( LOG_DEBUG, "Element's mask has size 0" );
-                }
                 break;
 
             case EQUATION_ELEM_OPERATION:
@@ -181,27 +196,120 @@ namespace MetricsDiscoveryInternal
                 ReadParams = element.ReadParams;
                 break;
 
+            case EQUATION_ELEM_MASK:
             case EQUATION_ELEM_GLOBAL_SYMBOL:
             case EQUATION_ELEM_LOCAL_COUNTER_SYMBOL:
             case EQUATION_ELEM_OTHER_SET_COUNTER_SYMBOL:
             case EQUATION_ELEM_LOCAL_METRIC_SYMBOL:
             case EQUATION_ELEM_OTHER_SET_METRIC_SYMBOL:
             case EQUATION_ELEM_INFORMATION_SYMBOL:
-                iu_strcpy_s( SymbolNameInternal, sizeof( SymbolNameInternal ), element.SymbolNameInternal );
-                SymbolName = SymbolNameInternal;
-                break;
-
+            case EQUATION_ELEM_PREV_METRIC_SYMBOL:
+                // Handled in CopyMembers or MoveMembers.
             case EQUATION_ELEM_SELF_COUNTER_VALUE:
             case EQUATION_ELEM_STD_NORM_GPU_DURATION:
             case EQUATION_ELEM_STD_NORM_EU_AGGR_DURATION:
+                // A type describes the equation element, no additional data to copy.
                 break;
 
             default:
                 MD_LOG( LOG_ERROR, "Unrecognized element type: %u", Type );
                 break;
         }
+    }
 
-        MetricIndexInternal = element.MetricIndexInternal;
+    //////////////////////////////////////////////////////////////////////////////
+    //
+    // Class:
+    //     CEquationElementInternal
+    //
+    // Method:
+    //     CopyMembers
+    //
+    // Description:
+    //     Copies dynamically allocated members.
+    //
+    //////////////////////////////////////////////////////////////////////////////
+    void CEquationElementInternal::CopyMembers( const CEquationElementInternal& element )
+    {
+        SymbolName = GetCopiedCString( element.SymbolName, IU_ADAPTER_ID_UNKNOWN );
+
+        if( element.Type == EQUATION_ELEM_MASK )
+        {
+            if( const uint32_t byteArraySize = element.Mask.Size;
+                byteArraySize != 0 )
+            {
+                if( element.Mask.Data == nullptr )
+                {
+                    Mask.Size = 0;
+                    Mask.Data = nullptr;
+                    MD_LOG( LOG_WARNING, "Cannot copy null element's mask" );
+                }
+                else
+                {
+                    Mask.Size = byteArraySize;
+                    Mask.Data = new( std::nothrow ) uint8_t[byteArraySize]();
+
+                    if( Mask.Data == nullptr )
+                    {
+                        MD_LOG( LOG_WARNING, "Cannot allocate memory for element's mask" );
+                    }
+                    else
+                    {
+                        iu_memcpy_s( Mask.Data, byteArraySize, element.Mask.Data, byteArraySize );
+                    }
+                }
+            }
+            else
+            {
+                MD_LOG( LOG_DEBUG, "Element's mask has size 0" );
+            }
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+    //
+    // Class:
+    //     CEquationElementInternal
+    //
+    // Method:
+    //     MoveMembers
+    //
+    // Description:
+    //     Moves dynamically allocated members.
+    //
+    //////////////////////////////////////////////////////////////////////////////
+    void CEquationElementInternal::MoveMembers( CEquationElementInternal& element )
+    {
+        SymbolName         = element.SymbolName; // Move ownership to the new object.
+        element.SymbolName = nullptr;            // Delete ownership from the old object.
+
+        if( element.Type == EQUATION_ELEM_MASK )
+        {
+            if( const uint32_t byteArraySize = element.Mask.Size;
+                byteArraySize != 0 )
+            {
+                if( element.Mask.Data == nullptr )
+                {
+                    Mask.Size = 0;
+                    Mask.Data = nullptr;
+                    MD_LOG( LOG_WARNING, "Cannot move null element's mask" );
+                }
+                else
+                {
+                    // Move ownership to the new object.
+                    Mask.Size = byteArraySize;
+                    Mask.Data = element.Mask.Data;
+
+                    // Delete ownership from the old object.
+                    element.Mask.Size = 0;
+                    element.Mask.Data = nullptr;
+                }
+            }
+            else
+            {
+                MD_LOG( LOG_DEBUG, "Element's mask has size 0" );
+            }
+        }
     }
 
     //////////////////////////////////////////////////////////////////////////////
@@ -224,7 +332,6 @@ namespace MetricsDiscoveryInternal
         , m_equationString( nullptr )
         , m_device( device )
     {
-        m_elementsVector.reserve( EQUATION_VECTOR_INCREASE );
     }
 
     //////////////////////////////////////////////////////////////////////////////
@@ -392,8 +499,12 @@ namespace MetricsDiscoveryInternal
 
                             case VALUE_TYPE_BYTEARRAY:
                                 // TODO: should be improved (the array can be bigger than 64bits)
-                                qwordValue = *reinterpret_cast<uint64_t*>( pValue->ValueByteArray->Data );
-                                break;
+                                if( pValue->ValueByteArray->Size == sizeof( uint64_t ) )
+                                {
+                                    qwordValue = *reinterpret_cast<uint64_t*>( pValue->ValueByteArray->Data );
+                                    break;
+                                }
+                                [[fallthrough]];
 
                             default:
                                 MD_ASSERT_A( adapterId, false );
@@ -610,6 +721,7 @@ namespace MetricsDiscoveryInternal
                 case GENERATION_PVC:
                 case GENERATION_BMG:
                 case GENERATION_LNL:
+                case GENERATION_PTL:
                     return ParseEquationString( "$Self $GpuSliceClocksCount $VectorEngineTotalCount UMUL FDIV 100 FMUL" );
 
                 default:
@@ -782,6 +894,16 @@ namespace MetricsDiscoveryInternal
             element.Type                  = EQUATION_ELEM_RD_UINT64;
             element.ReadParams.ByteOffset = strtoul( &equationString[3], nullptr, 0 );
         }
+        else if( strncmp( equationString, "rd8@", sizeof( "rd8@" ) - 1 ) == 0 )
+        {
+            element.Type                  = EQUATION_ELEM_RD_UINT8;
+            element.ReadParams.ByteOffset = strtoul( &equationString[4], nullptr, 0 );
+        }
+        else if( strncmp( equationString, "rd16@", sizeof( "rd16@" ) - 1 ) == 0 )
+        {
+            element.Type                  = EQUATION_ELEM_RD_UINT16;
+            element.ReadParams.ByteOffset = strtoul( &equationString[5], nullptr, 0 );
+        }
         else if( strncmp( equationString, "rd40@", sizeof( "rd40@" ) - 1 ) == 0 )
         {
             char* pEnd                    = (char*) &equationString[5];
@@ -815,16 +937,30 @@ namespace MetricsDiscoveryInternal
         }
         else if( strncmp( equationString, "$$", sizeof( "$$" ) - 1 ) == 0 )
         {
-            iu_strncpy_s( element.SymbolNameInternal, sizeof( element.SymbolNameInternal ), &equationString[2], sizeof( element.SymbolNameInternal ) - 1 );
-            element.SymbolName = element.SymbolNameInternal;
+            MD_SAFE_DELETE_ARRAY( element.SymbolName );
+            element.SymbolName = GetCopiedCString( &equationString[2], adapterId );
             element.Type       = EQUATION_ELEM_LOCAL_METRIC_SYMBOL;
+        }
+        else if( strncmp( equationString, "prev$$", sizeof( "prev$$" ) - 1 ) == 0 )
+        {
+            MD_SAFE_DELETE_ARRAY( element.SymbolName );
+            element.SymbolName = GetCopiedCString( &equationString[6], adapterId );
+            element.Type       = EQUATION_ELEM_PREV_METRIC_SYMBOL;
         }
         else if( ( equationString[0] == '$' ) && ( equationString[1] != 0 ) )
         {
-            auto value = m_device.GetGlobalSymbolValueByName( &equationString[1] );
+            std::string symbolName = &equationString[1];
 
-            iu_strncpy_s( element.SymbolNameInternal, sizeof( element.SymbolNameInternal ), &equationString[1], sizeof( element.SymbolNameInternal ) - 1 );
-            element.SymbolName = element.SymbolNameInternal;
+            if( IsLegacyMaskGlobalSymbol( symbolName.c_str() ) )
+            {
+                // Legacy mask global symbol needs to be prefixed with "Gt"
+                symbolName.insert( 0, "Gt" );
+            }
+
+            auto value = m_device.GetGlobalSymbolValueByName( symbolName.c_str() );
+
+            MD_SAFE_DELETE_ARRAY( element.SymbolName );
+            element.SymbolName = GetCopiedCString( symbolName.c_str(), adapterId );
 
             element.Type = ( value == nullptr )
                 ? EQUATION_ELEM_LOCAL_COUNTER_SYMBOL // Finish element as local counter symbol
@@ -832,8 +968,8 @@ namespace MetricsDiscoveryInternal
         }
         else if( strncmp( equationString, "i$", sizeof( "i$" ) - 1 ) == 0 )
         {
-            iu_strncpy_s( element.SymbolNameInternal, sizeof( element.SymbolNameInternal ), &equationString[2], sizeof( element.SymbolNameInternal ) - 1 );
-            element.SymbolName = element.SymbolNameInternal;
+            MD_SAFE_DELETE_ARRAY( element.SymbolName );
+            element.SymbolName = GetCopiedCString( &equationString[2], adapterId );
             element.Type       = EQUATION_ELEM_INFORMATION_SYMBOL;
         }
         else if( strchr( equationString, '.' ) != nullptr ) // assume float number
@@ -863,7 +999,7 @@ namespace MetricsDiscoveryInternal
             return false;
         }
 
-        m_elementsVector.push_back( element );
+        m_elementsVector.push_back( std::move( element ) );
 
         return true;
     }
@@ -874,30 +1010,62 @@ namespace MetricsDiscoveryInternal
     //     CEquation
     //
     // Method:
-    //     WriteCEquationToFile
+    //     WriteCEquationToBuffer
     //
     // Description:
-    //     Writes equation string to file.
+    //     Writes equation string to buffer.
     //
     // Input:
-    //     FILE* metricFile - handle to a metric file
+    //     uint8_t*  buffer       - pointer to a buffer
+    //     uint32_t& bufferSize   - size of the buffer
+    //     uint32_t& bufferOffset - the current offset of the buffer
     //
     // Output:
-    //     TCompletionCode  - result of the operation
+    //     TCompletionCode        - result of the operation
     //
     //////////////////////////////////////////////////////////////////////////////
-    TCompletionCode CEquation::WriteCEquationToFile( FILE* metricFile )
+    TCompletionCode CEquation::WriteCEquationToBuffer( uint8_t* buffer, uint32_t& bufferSize, uint32_t& bufferOffset )
     {
         const uint32_t adapterId = m_device.GetAdapter().GetAdapterId();
 
-        if( metricFile == nullptr )
-        {
-            MD_ASSERT_A( adapterId, metricFile != nullptr );
-            return CC_ERROR_INVALID_PARAMETER;
-        }
-
-        WriteCStringToFile( m_equationString, metricFile, adapterId );
+        TCompletionCode result = WriteCStringToBuffer( m_equationString, buffer, bufferSize, bufferOffset, adapterId );
+        MD_CHECK_CC_RET_A( adapterId, result );
 
         return CC_OK;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+    //
+    // Class:
+    //     CEquation
+    //
+    // Method:
+    //     IsLegacyMaskGlobalSymbol
+    //
+    // Description:
+    //     Checks if given symbol name is a legacy mask global symbol
+    //     (not prefixed with "Gt" and suffixed with "Mask").
+    //
+    // Input:
+    //     const char* name            - symbol name
+    //
+    // Output:
+    //     bool                        - true if name is a legacy mask global symbol
+    //
+    //////////////////////////////////////////////////////////////////////////////
+    bool CEquation::IsLegacyMaskGlobalSymbol( const char* name )
+    {
+        const char* suffix = "Mask";
+        const char* prefix = "Gt";
+
+        size_t nameLength   = strlen( name );
+        size_t suffixLength = strlen( suffix );
+
+        if( nameLength >= suffixLength && strcmp( name + nameLength - suffixLength, suffix ) == 0 )
+        {
+            return strncmp( name, prefix, 2 ) != 0;
+        }
+
+        return false;
     }
 } // namespace MetricsDiscoveryInternal

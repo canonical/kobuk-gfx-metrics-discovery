@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2024 Intel Corporation
+Copyright (C) 2024-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -14,17 +14,17 @@ SPDX-License-Identifier: MIT
 
 #include "md_per_platform_preamble.h"
 
-#if MD_INCLUDE_BMG_METRICS || MD_INCLUDE_LNL_METRICS
+#if MD_INCLUDE_BMG_METRICS || MD_INCLUDE_LNL_METRICS || MD_INCLUDE_PTL_METRICS
 
 struct ExternalEvents
 {
-    static const char archEvents[31558];
-    static const char hwEvents[44623];
+    static const char archEvents[33031];
+    static const char hwEvents[46344];
 };
 
 #endif
 
-#if MD_INCLUDE_MTL_GT2_METRICS || MD_INCLUDE_MTL_GT3_METRICS || MD_INCLUDE_BMG_METRICS || MD_INCLUDE_LNL_METRICS || MD_INCLUDE_ARL_GT1_METRICS || MD_INCLUDE_ARL_GT2_METRICS
+#if MD_INCLUDE_MTL_GT2_METRICS || MD_INCLUDE_MTL_GT3_METRICS || MD_INCLUDE_BMG_METRICS || MD_INCLUDE_LNL_METRICS || MD_INCLUDE_PTL_METRICS || MD_INCLUDE_ARL_GT1_METRICS || MD_INCLUDE_ARL_GT2_METRICS
 
 struct ExternalEventsMedia
 {
@@ -34,11 +34,11 @@ struct ExternalEventsMedia
 
 #endif
 
-#if MD_INCLUDE_BMG_METRICS || MD_INCLUDE_LNL_METRICS
+#if MD_INCLUDE_BMG_METRICS || MD_INCLUDE_LNL_METRICS || MD_INCLUDE_PTL_METRICS
 
 struct ExternalEventsWorkarounds
 {
-    static const char workarounds[397];
+    static const char workarounds[409];
 };
 
 #endif

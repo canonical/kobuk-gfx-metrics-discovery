@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023-2024 Intel Corporation
+Copyright (C) 2023-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -23,7 +23,7 @@ SPDX-License-Identifier: MIT
 
 namespace MetricsDiscoveryInternal::MetricSets_PVC_GT2_OA
 {
-    void AddInformationSet( CConcurrentGroup* concurrentGroup );
+    TCompletionCode AddInformationSet( CConcurrentGroup* concurrentGroup );
 
     class CComputeBasicMetricSet final : public CMetricSet
     {

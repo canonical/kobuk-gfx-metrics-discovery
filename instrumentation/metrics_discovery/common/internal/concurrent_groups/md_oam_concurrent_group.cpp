@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022-2024 Intel Corporation
+Copyright (C) 2022-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -76,6 +76,7 @@ namespace MetricsDiscoveryInternal
             case GENERATION_ARL:
             case GENERATION_BMG:
             case GENERATION_LNL:
+            case GENERATION_PTL:
                 reportFormat = OA_REPORT_TYPE_128B_MPEC8_NOA16;
                 break;
 
