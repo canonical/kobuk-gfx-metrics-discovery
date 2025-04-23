@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2024 Intel Corporation
+Copyright (C) 2024-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -25,6 +25,21 @@ using namespace MetricsDiscovery;
 
 namespace MetricsDiscoveryInternal
 {
+    //////////////////////////////////////////////////////////////////////////////
+    //
+    // Struct:
+    //     SXeObservationCapabilities
+    //
+    // Description:
+    //     A structure holding information about Xe observation features support in kernel.
+    //
+    //////////////////////////////////////////////////////////////////////////////
+    typedef struct SXeObservationCapabilities
+    {
+        bool IsConfigurableOaBufferSize;
+        bool IsOaNotifyNumReportsSupported;
+    } TXeObservationCapabilities;
+
     //////////////////////////////////////////////////////////////////////////////
     //
     // Class:
@@ -74,7 +89,7 @@ namespace MetricsDiscoveryInternal
 
     private:
         // OA Stream
-        virtual TCompletionCode OpenOaStream( CMetricsDevice& metricsDevice, uint32_t oaMetricSetId, uint32_t oaReportType, uint32_t timerPeriodExponent, uint32_t bufferSize, const GTDI_OA_BUFFER_TYPE oaBufferType );
+        virtual TCompletionCode OpenOaStream( CMetricsDevice& metricsDevice, uint32_t oaMetricSetId, uint32_t oaReportType, uint32_t oaReportSize, uint32_t timerPeriodExponent, uint32_t bufferSize, const GTDI_OA_BUFFER_TYPE oaBufferType );
         virtual TCompletionCode ReadOaStream( CMetricsDevice& metricsDevice, uint32_t reportSize, uint32_t reportsToRead, char* reportData, uint32_t& readBytes, GTDIReadCounterStreamExceptions& exceptions );
         virtual TCompletionCode AddOaConfig( TRegister** regVector, const uint32_t regCount, const uint32_t subDeviceIndex, const char* requestedGuid, int32_t& addedConfigId );
         virtual TCompletionCode RemoveOaConfig( int32_t oaConfigId );
@@ -82,6 +97,9 @@ namespace MetricsDiscoveryInternal
         virtual TCompletionCode GetOaTimestampFrequency( uint64_t& frequency );
         virtual TCompletionCode GetCsTimestampFrequency( uint64_t& frequency );
         bool                    IsOamRequested( const uint32_t reportType );
+
+        // Xe observation capabilities
+        TCompletionCode ReadXeObservationCapabilities();
 
         // Read global symbols per tile.
         TCompletionCode GetGeometryTopology( std::vector<uint8_t>& buffer, CMetricsDevice& metricsDevice );
@@ -97,10 +115,13 @@ namespace MetricsDiscoveryInternal
         virtual TCompletionCode GetOaBufferCount( CMetricsDevice& metricsDevice, uint32_t& oaBufferCount );
         virtual TCompletionCode GetL3NodeTotalCount( CMetricsDevice& metricsDevice, uint32_t& l3NodeCount );
         virtual TCompletionCode GetL3BankTotalCount( CMetricsDevice& metricsDevice, uint32_t& l3BankCount );
+        virtual TCompletionCode GetCopyEngineTotalCount( CMetricsDevice& metricsDevice, uint32_t& copyEngineCount );
         virtual TCompletionCode GetComputeEngineTotalCount( CMetricsDevice& metricsDevice, uint32_t& computeEngineCount );
         virtual TCompletionCode GetL3BankMask( CMetricsDevice& metricsDevice, uint64_t& l3BankMask );
         virtual TCompletionCode GetL3NodeMask( CMetricsDevice& metricsDevice, uint64_t& l3NodeMask );
         virtual TCompletionCode GetCopyEngineMask( CMetricsDevice& metricsDevice, uint64_t& copyEngineMask );
+
+        TXeObservationCapabilities m_xeObservationCapabilities; // Information about Xe observation features supported in current kernel
     };
 
 } // namespace MetricsDiscoveryInternal

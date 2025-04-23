@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022-2024 Intel Corporation
+Copyright (C) 2022-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -71,6 +71,7 @@ namespace MetricsDiscoveryInternal
         { "EDRAM", METRIC_GROUP_NAME_ID_EDRAM, METRIC_GROUP_LEVEL_0 },
         { "DRAM", METRIC_GROUP_NAME_ID_DRAM, METRIC_GROUP_LEVEL_0 },
         { "EU Array", METRIC_GROUP_NAME_ID_EU_ARRAY, METRIC_GROUP_LEVEL_0 },
+        { "VectorEngine", METRIC_GROUP_NAME_ID_EU_ARRAY, METRIC_GROUP_LEVEL_0 },
         { "Sampler", METRIC_GROUP_NAME_ID_SAMPLER, METRIC_GROUP_LEVEL_0 },
         { "Uncore", METRIC_GROUP_NAME_UNCORE, METRIC_GROUP_LEVEL_0 },
         { "Memory Controller", METRIC_GROUP_NAME_UNCORE_MC, METRIC_GROUP_LEVEL_0 },
@@ -254,19 +255,19 @@ namespace MetricsDiscoveryInternal
         TCompletionCode AddComplementaryMetricSet( const char* complementaryMetricSetSymbolicName );
         TCompletionCode AddComplementaryMetricSets( const char* complementarySetsList );
 
-        TCompletionCode AddStartRegisterSet( uint32_t configId, uint32_t configPriority, const char* availabilityEquation = nullptr, TConfigType configType = CONFIG_TYPE_COMMON );
-        TCompletionCode AddStartConfigRegister( uint32_t offset, uint32_t value, TRegisterType type );
-        TCompletionCode RefreshConfigRegisters();
-        TRegister**     GetStartConfiguration( uint32_t& count );
-        TCompletionCode SendStartConfiguration( bool sendQueryConfigFlag );
-        void            AppendToConfiguration( std::vector<TRegister*>& sourceRegs, std::vector<TRegister*>& outPmRegs, std::vector<TRegister*>& outReadRegs );
-        bool            CheckSendConfigRequired( bool sendQueryConfigFlag );
+        virtual TCompletionCode AddStartRegisterSet( uint32_t configId, uint32_t configPriority, const char* availabilityEquation = nullptr, TConfigType configType = CONFIG_TYPE_COMMON );
+        TCompletionCode         AddStartConfigRegister( uint32_t offset, uint32_t value, TRegisterType type );
+        virtual TCompletionCode RefreshConfigRegisters();
+        TRegister**             GetStartConfiguration( uint32_t& count );
+        TCompletionCode         SendStartConfiguration( bool sendQueryConfigFlag );
+        void                    AppendToConfiguration( std::vector<TRegister*>& sourceRegs, std::vector<TRegister*>& outPmRegs, std::vector<TRegister*>& outReadRegs );
+        bool                    CheckSendConfigRequired( bool sendQueryConfigFlag );
 
         TCompletionCode ActivateInternal( bool sendConfigFlag, bool sendQueryConfigFlag );
 
         TReportType     GetReportType();
         TCompletionCode InheritFromMetricSet( CMetricSet* referenceMetricSet, const char* signalName, bool copyInformationOnly );
-        TCompletionCode WriteCMetricSetToFile( FILE* metricFile );
+        TCompletionCode WriteCMetricSetToBuffer( uint8_t* buffer, uint32_t& bufferSize, uint32_t& bufferOffset, bool copyInformationFromGroup );
         bool            IsMetricAlreadyAdded( const char* symbolName );
         bool            IsCustom();
 
@@ -283,6 +284,8 @@ namespace MetricsDiscoveryInternal
         bool IsOpened();
         void SetToFlexible();
         void DecreasePrototypesReferenceCounters();
+
+        void SetPrototypeManager( CPrototypeManager* prototypeManager );
 
         // Inline function.
         inline CMetric* GetMetricExplicit( const uint32_t index )
@@ -320,7 +323,7 @@ namespace MetricsDiscoveryInternal
         bool     GetStartRegSetHiPriority( uint32_t id, CRegisterSet** registerSet );
 
         // Flexible metric set methods:
-        TCompletionCode AddDefaultMetrics();
+        virtual TCompletionCode AddDefaultMetrics();
 
     private:
         // Variables:
@@ -363,14 +366,5 @@ namespace MetricsDiscoveryInternal
         bool               m_isFlexible;
         bool               m_isOpened;
         CPrototypeManager* m_prototypeManager;
-
-    private:
-        // Static variables:
-        static constexpr uint32_t METRICS_VECTOR_INCREASE            = 64;
-        static constexpr uint32_t INFORMATION_VECTOR_INCREASE        = 16;
-        static constexpr uint32_t COMPLEMENTARY_SETS_VECTOR_INCREASE = 16;
-        static constexpr uint32_t START_REGS_VECTOR_INCREASE         = 128;
-        static constexpr uint32_t START_REGS_QUERY_VECTOR_INCREASE   = 16;
-        static constexpr uint32_t STOP_REGS_VECTOR_INCREASE          = 32;
     };
 } // namespace MetricsDiscoveryInternal
